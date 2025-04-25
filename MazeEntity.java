@@ -41,8 +41,12 @@ public class MazeEntity extends SuperSmoothMover
     }
 
     protected void updateSize() {
+        if (image == null) {
+            image = getImage(); // fallback to Greenfoot's image
+        }
         halfWidth = image.getWidth()/2;
         halfHeight = image.getHeight()/2;
+
     }
 
     public int getHalfWidth() {

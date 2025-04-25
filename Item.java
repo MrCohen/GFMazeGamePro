@@ -1,194 +1,172 @@
-import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
+import greenfoot.*;
 
 /**
- * Write a description of class Item here.
- * 
- * @author (your name) 
- * @version (a version number or a date)
+ * Base class for all pick-up / place-able objects.
+ *
+ *  •  Three visual forms
+ *       - worldImage      – actor on the maze floor or a placed object
+ *       - inventoryImage  – transparent icon for inventory / action-bar
+ *       - itemSprite      – raw sprite with no padding
+ *
+ *  •  Behaviour flags are **instance** fields – no more shared static values.
  */
-public abstract class Item extends MazeEntity implements iAction
-{
-    //protected static GreenfootImage cachedItemImage, cachedMazeImage, cachedInventoryImage;
-    protected GreenfootImage itemImage, mazeImage, inventoryImage;
-    protected static boolean canBePlaced, canBeUsed, isPlaced, isOnGround, inInventory, canStack;
-    protected static int stackSize;
-    protected int quantity;
-    protected String name, description;
-    
+public abstract class Item extends MazeEntity implements iAction {
 
-    public abstract Item place();
+    /* ?? behaviour flags ??????????????????????????????????????????? */
+    protected final boolean canBePlaced;
+    protected final boolean canBeUsed;
+    protected final boolean canStack;
+    protected final int     stackSize;
 
-    public abstract Item use();
-    
-    public abstract void attack (MazeEntity shooter, int direction, Class target);
+    /* ?? sprites ??????????????????????????????????????????????????? */
+    protected final GreenfootImage itemSprite;     // raw asset (no border)
+    protected final GreenfootImage worldImage;     // border + background
+    protected final GreenfootImage inventoryImage; // transparent, padded
 
-    /**
-     * An item can be isPlaced (active in Maze, doing something), isOneGround or neither (inInventory).
-     * 
-     * 
-     * 
-     */
+    /* ?? meta data ????????????????????????????????????????????????? */
+    protected String name;
+    protected String description;
+    protected int    quantity;
 
-    public Item (GreenfootImage itemImage, boolean isPlaced, boolean isOnGround){
-        this.isOnGround = isOnGround;
-        this.isPlaced = isPlaced;
-        if (!isPlaced && !isOnGround){ // just one less parameter I guess..
-            inInventory = true;
-        }
-        // Draw the World version of the item. 
-        image = new GreenfootImage(itemImage.getWidth() + 4, itemImage.getHeight() + 4);
-        image.setColor(backgroundColor);
-        image.fill();
-        image.setColor(borderColor);
-        image.drawRect(0,0, image.getWidth() - 1, image.getHeight() - 1);
-        image.drawRect(1,1, image.getWidth() - 3, image.getHeight() - 3);
-        image.drawImage(itemImage, 2, 2);
-        this.image = image;
-        itemImage = image;
-        setImage(image);
-        quantity = 1;
-        lightStrength = 0;
-        lightIntensity = 0;
+    /* ?? ctor ?????????????????????????????????????????????????????? */
+    public Item(GreenfootImage sprite,  boolean canPlace, boolean canUse,  boolean canStack, int stackSize, String name, String description, boolean drawBorderInitially)
+    {
+        this.canBePlaced = canPlace;
+        this.canBeUsed   = canUse;
+        this.canStack    = canStack;
+        this.stackSize   = stackSize;
+
+        this.name        = name;
+        this.description = description;
+        this.quantity    = 1;
+
+        this.itemSprite      = new GreenfootImage(sprite);
+        this.worldImage      = buildWorldImage(sprite);     // green-bordered
+        this.inventoryImage  = buildInventoryIcon(sprite);  // transparent
+
+        this.image = drawBorderInitially ? worldImage : inventoryImage;
+        setImage(this.image);
     }
 
+    /* ??????????????????? static bootstrap for ALL items ??????????? */
     public static void init() {
-        Torch.init();
+        Torch.init();       // add other item types here later
     }
 
-    public boolean canStack(){
-        return canStack;
+    /* ?? behaviour queries (instance safe) ????????????????????????? */
+    public boolean canBePlaced() { return canBePlaced; }
+
+    public boolean canBeUsed()   { return canBeUsed; }
+
+    public boolean canStack()    { return canStack; }
+
+    public int     getStackSize(){ return stackSize; }
+
+    public int     getQuantity() { return quantity; }
+
+    public boolean isWeapon()    { return false; }
+
+    public String  getName()        { return name; }
+
+    public String  getDescription() { return description; }
+
+    /* ?? sprite accessors ?????????????????????????????????????????? */
+    public GreenfootImage getIcon()            { return new GreenfootImage(inventoryImage); }
+
+    public GreenfootImage getInventoryImage()  { return new GreenfootImage(inventoryImage); }
+
+    public GreenfootImage getItemImage()       { return new GreenfootImage(itemSprite); }
+
+    /*  Called by InventoryManager after the actor has been placed
+     *  in a window.  Switch to the transparent icon.                */
+    public void setInventoryImage() {
+        this.image = inventoryImage;
+        setImage(this.image);
+
     }
 
-    public boolean isOnGround() {
-        return isOnGround;
-    }
-    
-    public boolean canBePlaced() {
-        return canBePlaced;
+    /*  Variant kept for backward compatibility – lets caller supply
+     *  a modified image (eg. power stamp).                           */
+    public void setInventoryImage(GreenfootImage img) {
+        inventoryImage.drawImage(img, 0, 0);
+        this.image = inventoryImage;
+        setImage(this.image);
+
     }
 
-    public int getQuantity () {
-        return quantity;
+    /* ?? drag/drop helper ?????????????????????????????????????????? */
+    public ActionBarButton getDropBar() {
+        if (!isTouching(ActionBarButton.class)) return null;
+        return (ActionBarButton) getOneIntersectingObject(ActionBarButton.class);
     }
 
-    public boolean isWeapon() {
-        return false;  // any weapon would override this with true, be equipped to weapon slot when "used"
+    /* ?? WORLD vs INVENTORY image builders ????????????????????????? */
+    private static final int ICON_SIZE = GameWorld.ITEM_SIZE;
+
+    /** transparent, centred, no border */
+    private GreenfootImage buildInventoryIcon(GreenfootImage src) {
+        GreenfootImage img = new GreenfootImage(ICON_SIZE, ICON_SIZE);
+        img.clear();                                          // transparent
+        int x = (ICON_SIZE - src.getWidth())  / 2;
+        int y = (ICON_SIZE - src.getHeight()) / 2;
+        img.drawImage(src, x, y);
+        return img;
     }
 
-    public GreenfootImage getIcon () {
-        return new GreenfootImage (inventoryImage);
+    /** green-bordered square for floor/placed view */
+    private GreenfootImage buildWorldImage(GreenfootImage src) {
+        GreenfootImage img = new GreenfootImage(src.getWidth() + 4,
+                src.getHeight() + 4);
+        img.setColor(backgroundColor);
+        img.fill();
+        img.setColor(borderColor);              // borderColor from MazeEntity
+        img.drawRect(0, 0, img.getWidth() - 1, img.getHeight() - 1);
+        img.drawRect(1, 1, img.getWidth() - 3, img.getHeight() - 3);
+        img.drawImage(src, 2, 2);
+        return img;
     }
 
-    public int getStackSize () {
-        if (!canBePlaced){
-            return 1;
-        } else {
-            return stackSize;
+    /* ??????????????????????????????????????????????????????????????
+     *  Detach this Item from the maze and return a reference that
+     *  InventoryManager can store/stack.  (The caller then does
+     *      InventoryManager.addItem( item.pickUpItem() );
+     *  or similar.)
+     * ???????????????????????????????????????????????????????????? */
+    public Item pickUpItem() {
+        if (maze != null) {             // safety: only if we are in a maze
+            maze.removeMazeEntity(this);
         }
-    }
-
-    public String getName(){
-        return name;
-    }
-
-    public String getDescription(){
-        return description;
-    }
-
-    public boolean canBeUsed() {
-        return canBeUsed;
-    }
-
-    // When this is being dragged and is released, see if it is touching
-    // an ActionBarButton
-    public ActionBarButton getDropBar () {
-        if (!isTouching(ActionBarButton.class)){
-            return null;
-        }
-        ActionBarButton abb = (ActionBarButton)getOneIntersectingObject (ActionBarButton.class);
-        return abb;
-    }
-
-    public Action createAction (String key){
-        if (canBeUsed){
-            return new Action (this, key);   
-        } else {
-            return new Action (this, "");
-        }
-    }
-
-    public Item pickUpItem (){
-        maze.removeMazeEntity(this);
+        setInventoryImage();            // switch to icon graphic
         return this;
     }
 
-    public GreenfootImage getMazeImage(){
-        if (mazeImage == null){
-            return itemImage;
-        }
-        return mazeImage;
+    /* ?? optional power/quantity stamping utility ????????????????? */
+    public static GreenfootImage stampPower(Item item, int value) {
+        GreenfootImage img = item.getInventoryImage();
+        img.setFont(new Font("Verdana", true, false, 14));
+        img.setColor(Color.WHITE);
+        img.fillRect(0, GameWorld.ITEM_SIZE - 15, GameWorld.ITEM_SIZE / 3, 15);
+        img.setColor(Color.BLACK);
+        img.drawRect(0, GameWorld.ITEM_SIZE - 15, GameWorld.ITEM_SIZE / 3, 15);
+        img.setColor(Color.BLACK);
+        img.drawString((value >= 0 ? "+" : "") + value,
+            GameWorld.ITEM_SIZE - 12, GameWorld.ITEM_SIZE / 4 - 1);
+        return img;
     }
 
-    public void setInventoryImage(GreenfootImage newImage){
-        inventoryImage = new GreenfootImage(newImage);
-        setInventoryImage();
+    /* ?? equality / hashing ??????????????????????????????????????? */
+    @Override public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Item i)) return false;
+        return name.equals(i.name);
     }
 
-    public void setInventoryImage(){
-        image = inventoryImage;
-        setImage(image);
-    }
+    @Override public int hashCode() { return name.hashCode(); }
 
-    public GreenfootImage getInventoryImage(){
-        if (inventoryImage == null){
-            return itemImage;
-        }
-        return inventoryImage;
-    }
+    /* ?? abstract API that concrete items must implement ?????????? */
+    public abstract Item place();
 
-    public GreenfootImage getItemImage(){
-        return itemImage;
-    }
+    public abstract Item use();
 
-    public static GreenfootImage stampPower (Item item, int value){
-        Color c;
-        String vString;
-        if (item instanceof Torch){
-            c = Color.BLACK;  
-        } else {
-            c = Color.BLACK;
-        }
-        GreenfootImage image = item.getInventoryImage();
-        image.setFont(new Font ("Verdana", true, false, 14));
-        image.setColor(Color.WHITE);
-        image.fillRect (0, GameWorld.ITEM_SIZE - 15, GameWorld.ITEM_SIZE / 3, 15);
-        image.setColor(Color.BLACK);
-        image.drawRect(0, GameWorld.ITEM_SIZE - 15, GameWorld.ITEM_SIZE / 3, 15);
-        image.setColor(c);
-        if (value > 0){
-            vString = "+" + value;
-        } else {
-            vString = "" + value;
-        }
-        image.drawString (vString, GameWorld.ITEM_SIZE - 12,  GameWorld.ITEM_SIZE / 4 -1  );
-        return image;
-        //item.setInventoryImage(image);
-        //item.getImage().drawString(
-    }
-
-    /**
-     * Items are equal if they are of the same type.
-     */
-    public boolean equals(Object other){
-        if (other.getClass() != this.getClass()){
-            System.out.println("not same class");
-            return false;
-        }
-        iAction a = (iAction)other;
-        if (a.getName() != this.getName()){
-            System.out.println("other name: " + a.getName() + " this name: " + this.getName());
-            return false;
-        }
-        return true;
-    }
+    public abstract void attack(MazeEntity shooter, int direction, Class target);
 }

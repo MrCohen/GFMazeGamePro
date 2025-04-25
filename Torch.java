@@ -1,82 +1,52 @@
-import greenfoot.*;  // (World, Actor, GreenfootImage, Greenfoot and MouseInfo)
+import greenfoot.*;
 
-/**
- * A Torch Emits Light. It can be used by the player to extend the player's light while walking aroound,
- * or placed, to give a permanent light at that location. So far, it has been implemented to sit on the ground as 
- * an item, be placed in a bag or on an item slot and placed. Next up - equip to increase player lighting.
- * 
- * @author Jordan Cohen 
- * @version 0.6.1
- */
-public class Torch extends Item implements iAction
-{
-    private static GreenfootImage cachedItemImage, cachedMazeImage, cachedInventoryImage;
-    
-    // This constructor is called when the object is "Placed" - returns
-    // a new Torch of this type rather than the (boolean boolean) one... this 
-    // wasn't intended... seems like two systems where one will do. Must improve!
-    public Torch (){
-        this (1);
+/** Torch – emits light only when PLACED; otherwise inert. */
+public class Torch extends Item {
+
+    private static GreenfootImage SPRITE;
+
+    /** Load sprite once for all torches */
+    public static void init() {
+        SPRITE = new GreenfootImage("item_torch.png");   // replace with real asset
     }
 
-    // When placed
-    public Torch (int quantity){
-        super(cachedItemImage, true, false);
-        sharedSetup();
-        lightStrength = 4;
-        this.quantity = quantity;
-        isPlaced = true;
-        //Item.stampPower(this, lightStrength);
-        
-        setImage (new GreenfootImage(cachedMazeImage));
-       
-    }
+    /* internal state */
+    private final boolean isPlaced;
+    private final boolean isOnGround;
 
-    // Initial Constructor
-    public Torch (boolean isPlaced, boolean isInMaze){
-        super(cachedItemImage, isPlaced, isInMaze);
-        sharedSetup(); // setup commands applicable to all Torches
-        //inventoryImage = Item.stampPower(this, 4);
-        if (isPlaced){
-            setImage(mazeImage);
-            lightStrength = 4;
-        } ///else if (isInMaze){
-        //  setImage(itemImage);}
-        else  if (!isInMaze){
-            setImage(inventoryImage);
+    public Torch(boolean isPlaced, boolean isOnGround) {
+        super(SPRITE,
+              true,            // canBePlaced
+              true,            // canBeUsed (e.g., right-click to place)
+              true,            // canStack
+              99,              // stackSize
+              "Torch",
+              "A wooden torch that lights the maze when placed.",
+              /* draw green border initially? */
+              isPlaced || isOnGround);
+
+        this.isPlaced   = isPlaced;
+        this.isOnGround = isOnGround;
+
+        if (isPlaced) {            // only placed torches emit light
+            lightStrength  = 6;
+            lightIntensity = 0.75;
+        } else {
+            lightStrength  = 0;
+            lightIntensity = 0;
         }
     }
 
-    private void sharedSetup (){
-        name = "Torch";
-        canBePlaced = true;
-        canBeUsed = true;
-        canStack = true;
-        stackSize = 99;
-        lightIntensity = 2;
-        itemImage = new GreenfootImage(cachedItemImage);
-        mazeImage = new GreenfootImage(cachedMazeImage);
-        inventoryImage = new GreenfootImage(cachedInventoryImage);
-        
-    }
-    
-    public static void init () {
-        cachedMazeImage = new GreenfootImage ("maze_torch.png");
-        cachedItemImage = new GreenfootImage ("item_torch.png");
-        cachedInventoryImage = new GreenfootImage ("inventory_torch.png");
+    /* ?? iAction behaviour ????????????????????????????????????????? */
+    @Override public Torch place() {
+        /* consume one from inventory, spawn a PLACED torch actor */
+        return new Torch(true, false);
     }
 
-    public void attack (MazeEntity shooter, int direction, Class target){
-        
-    }
-    
-    public Item place(){
-        
-        return new Torch();
-    }
+    @Override public Torch use() { return null; }   // not directly “used”
+    @Override public void attack(MazeEntity shooter,int dir,Class target){}
 
-    public Item use() {
-        setImage(itemImage);
-        return this;
-    }
+    /* convenience getters */
+    public boolean isPlaced()   { return isPlaced; }
+    public boolean isOnGround() { return isOnGround; }
 }
