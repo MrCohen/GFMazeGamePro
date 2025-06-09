@@ -493,6 +493,9 @@ public class SuperWindow extends Actor
         }
     }
 
+    /**
+     *  Remove by Actor
+     */
     public void removeObject (Actor a){
         for (ActorContent ac : contents){
             if (ac.getActor() == a){
@@ -500,16 +503,19 @@ public class SuperWindow extends Actor
                 return;
             }
         }
-        if (a.getWorld()!=null){
+        if (getWorld() != null && a.getWorld()!=null){
             getWorld().removeObject(a);
         }
     }
 
+    /**
+     *  Remove by ActorContent
+     */
     public void removeObject (ActorContent a){
         if (contents.contains(a)){
             contents.remove(a);
         }
-        if (a.getActor().getWorld() != null){
+        if (getWorld() != null && a.getActor().getWorld() != null){
             getWorld().removeObject(a.getActor());
         }
     }
